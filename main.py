@@ -1,3 +1,5 @@
+import bcrypt
+
 from forms import LoginForm, RegistrationForm
 from flask import Flask
 from flask import render_template, url_for, flash, request, redirect, Response
@@ -37,6 +39,16 @@ class User(UserMixin):
         return self.id
 
 
+class Profile():
+    def __init__(self, id, name, age, height, weight, seggs):
+        self.id = id
+        self.name = name
+        self.age = age
+        self.height = height
+        self.weight = weight
+        self.seggs = seggs
+
+
 @login_manager.user_loader
 def load_user(user_id):
     conn = sqlite3.connect('Nutrivie')
@@ -47,6 +59,17 @@ def load_user(user_id):
         return None
     else:
         return User(result[0], result[1], result[2])
+
+
+def load_profile(user_id):
+    conn = sqlite3.connect('Nutrivie')
+    curs = conn.cursor()
+    curs.execute("SELECT * from profile where user_id = (?)", [user_id])
+    result = curs.fetchone()
+    if result is None:
+        return None
+    else:
+        return Profile(result[0], result[1], result[2], result[3], result[4], result[5])
 
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -61,7 +84,7 @@ def login():
         user = list(curs.fetchone())
         us = load_user(user[0])
         conn.close()
-        if form.email.data == us.email and form.password.data == us.password:
+        if us and bcrypt.checkpw(form.password.data.encode('utf-8'), us.password):
             login_user(us, form.remember.data)
             umail = list({form.email.data})[0].split('@')[0]
             flash('Logged in successfully ' + umail)
@@ -79,7 +102,8 @@ def register():
     if form.validate_on_submit():
         conn = sqlite3.connect('Nutrivie')
         curs = conn.cursor()
-        curs.execute("INSERT INTO login (email,password) VALUES (?,?)", (form.email.data,form.password.data))
+        hashed = bcrypt.hashpw(form.password.data.encode('utf-8'), bcrypt.gensalt())
+        curs.execute("INSERT INTO login (email,password) VALUES (?,?)", (form.email.data, hashed))
         conn.commit()
         conn.close()
         umail = list({form.email.data})[0].split('@')[0]
@@ -91,45 +115,6 @@ def register():
 @app.route("/redirected")
 def redirected():
     return "You were redirected. Congrats :)!"
-
-
-###################
-
-# classe pour reconnaitre un user
-class Profile():
-    def __init__(self, id, name, age, height, weight, seggs):
-        self.id = id
-        self.name = name
-        self.age = age
-        self.height = height
-        self.weight = weight
-        self.seggs = seggs
-        
-# récuperer depuis la db
-def load_profile(user_id):
-    conn = sqlite3.connect('Nutrivie')
-    curs = conn.cursor()
-    curs.execute("SELECT * from profile where user_id = (?)", [user_id])
-    result = curs.fetchone()
-    if result is None:
-        return None
-    else:
-        return Profile(result[0], result[1], result[2], result[3], result[4], result[5])
-
-# fonction test
-def taille_x_age(user_id):
-    user = load_profile(user_id)
-    return user.height * user.age
-
-# create route
-@app.route('/profile', methods = ['GET', 'POST'])
-def profile():
-    return str((taille_x_age(1)))
-
-
-
-
-
 
 
 if __name__ == "__main__":
