@@ -1,6 +1,6 @@
 import bcrypt
 
-from forms import LoginForm, RegistrationForm, ProfileForm
+from forms import LoginForm, RegistrationForm, ProfileForm, HomeForm
 from flask import Flask
 from flask import render_template, url_for, flash, request, redirect, Response
 import sqlite3
@@ -14,7 +14,6 @@ login_manager.login_view = "login"
 
 SECRET_KEY = os.urandom(32)
 app.config['SECRET_KEY'] = SECRET_KEY
-
 
 
 class User(UserMixin):
@@ -85,12 +84,16 @@ def login():
         curs.execute("SELECT * FROM login where email = (?)", [form.email.data])
         user = list(curs.fetchone())
         us = load_user(user[0])
-        conn.close()
         if us and bcrypt.checkpw(form.password.data.encode('utf-8'), us.password):
             login_user(us, form.remember.data)
             flash('Logged in successfully ' + us.pseudo)
-            return redirect(url_for('profile'))
+            if (curs.execute("SELECT * FROM profile where pseudo = (?)", [us.pseudo])) is not None:
+                conn.close()
+                return redirect(url_for('profile'))
+            else:
+                return redirect(url_for('home'))
         else:
+            conn.close()
             flash('Could not log in')
     return render_template('login.html', title='Login', form=form)
 
@@ -113,7 +116,7 @@ def register():
     return render_template('register.html', title='Register', form=form)
 
 
-@app.route("/profile")
+@app.route("/profile", methods=['GET', 'POST'])
 def profile():
     form = ProfileForm()
     if form.validate_on_submit():
@@ -121,18 +124,20 @@ def profile():
         curs = conn.cursor()
         # charger le profile de l'utilisateur
         # remplir le profile avec id
-        curs.execute("INSERT INTO profile (age,height,weight,seggs) VALUES (?,?,?,?)",
-                     (form.age, form.height, form.weight, form.seggs))
+
+        curs.execute("INSERT INTO profile (user_id,age,weight,height,seggs) VALUES (?,?,?,?,?)",
+                     ("SELECT user_id FROM login", form.age, form.height, form.weight, form.seggs))
         conn.commit()
         conn.close()
         flash('You have completed your profile')
         return redirect(url_for('home'))
-    return render_template('profile.html',title='Profile',form =form)
+    return render_template('profile.html', title='Profile', form=form)
 
 
 @app.route("/home")
 def home():
     return "You were redirected! Congrats :)!"
+
 
 
 if __name__ == "__main__":

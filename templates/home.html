@@ -1,0 +1,14 @@
+{% extends "html_template.html" %}
+{% block info %}
+
+<form method='POST' action="">
+   {{ form.hidden_tag() }}
+   <fieldset class="form-group">
+      <h1>Home</h1>
+<div class="form-group">
+      {{ form.submit(class="btn btn-outline-info")}}
+</div>
+   </fieldset>
+</form>
+
+{% endblock info %}
