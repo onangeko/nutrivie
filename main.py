@@ -1,6 +1,6 @@
 import bcrypt
 
-from forms import LoginForm, RegistrationForm
+from forms import LoginForm, RegistrationForm, ProfileForm
 from flask import Flask
 from flask import render_template, url_for, flash, request, redirect, Response
 import sqlite3
@@ -16,11 +16,13 @@ SECRET_KEY = os.urandom(32)
 app.config['SECRET_KEY'] = SECRET_KEY
 
 
+
 class User(UserMixin):
-    def __init__(self, id, email, password):
+    def __init__(self, id, email, password, pseudo):
         self.id = id
         self.email = email
         self.password = password
+        self.pseudo = pseudo
         self.authenticated = False
 
     def is_active(self):
@@ -39,7 +41,7 @@ class User(UserMixin):
         return self.id
 
 
-class Profile():
+class Profile:
     def __init__(self, id, name, age, height, weight, seggs):
         self.id = id
         self.name = name
@@ -58,7 +60,7 @@ def load_user(user_id):
     if result is None:
         return None
     else:
-        return User(result[0], result[1], result[2])
+        return User(result[0], result[1], result[2], result[3])
 
 
 def load_profile(user_id):
@@ -75,7 +77,7 @@ def load_profile(user_id):
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('redirected'))
+        return redirect(url_for('profile'))
     form = LoginForm()
     if form.validate_on_submit():
         conn = sqlite3.connect('Nutrivie')
@@ -86,9 +88,8 @@ def login():
         conn.close()
         if us and bcrypt.checkpw(form.password.data.encode('utf-8'), us.password):
             login_user(us, form.remember.data)
-            umail = list({form.email.data})[0].split('@')[0]
-            flash('Logged in successfully ' + umail)
-            return redirect(url_for('redirected'))
+            flash('Logged in successfully ' + us.pseudo)
+            return redirect(url_for('profile'))
         else:
             flash('Could not log in')
     return render_template('login.html', title='Login', form=form)
@@ -97,24 +98,41 @@ def login():
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('redirected'))
+        return redirect(url_for('profile'))
     form = RegistrationForm()
     if form.validate_on_submit():
         conn = sqlite3.connect('Nutrivie')
         curs = conn.cursor()
         hashed = bcrypt.hashpw(form.password.data.encode('utf-8'), bcrypt.gensalt())
-        curs.execute("INSERT INTO login (email,password) VALUES (?,?)", (form.email.data, hashed))
+        curs.execute("INSERT INTO login (email,password,pseudo) VALUES (?,?,?)",
+                     (form.email.data, hashed, form.pseudo.data))
         conn.commit()
         conn.close()
-        umail = list({form.email.data})[0].split('@')[0]
-        flash('You have successfully registered ' + umail)
+        flash('You have successfully registered ' + form.pseudo.data)
         return redirect(url_for('login'))
     return render_template('register.html', title='Register', form=form)
 
 
-@app.route("/redirected")
-def redirected():
-    return "You were redirected. Congrats :)!"
+@app.route("/profile")
+def profile():
+    form = ProfileForm()
+    if form.validate_on_submit():
+        conn = sqlite3.connect('Nutrivie')
+        curs = conn.cursor()
+        # charger le profile de l'utilisateur
+        # remplir le profile avec id
+        curs.execute("INSERT INTO profile (age,height,weight,seggs) VALUES (?,?,?,?)",
+                     (form.age, form.height, form.weight, form.seggs))
+        conn.commit()
+        conn.close()
+        flash('You have completed your profile')
+        return redirect(url_for('home'))
+    return render_template('profile.html',title='Profile',form =form)
+
+
+@app.route("/home")
+def home():
+    return "You were redirected! Congrats :)!"
 
 
 if __name__ == "__main__":
