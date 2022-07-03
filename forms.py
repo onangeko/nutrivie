@@ -37,3 +37,7 @@ class ProfileForm(FlaskForm):
         (1, 'M'), (2, 'F')],
                        default=1, coerce=int)
     submit = SubmitField('OK')
+
+
+class HomeForm(FlaskForm):
+    submit = SubmitField('Logout')
