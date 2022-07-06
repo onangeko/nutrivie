@@ -89,11 +89,13 @@ def login():
         if us and bcrypt.checkpw(form.password.data.encode('utf-8'), us.password):
             login_user(us, form.remember.data)
             flash('Logged in successfully ' + us.pseudo)
-            rowcount = curs.execute("SELECT * FROM profile where pseudo = (?)", [us.pseudo])
-            if rowcount is None:
+            curs.execute("SELECT * FROM profile where pseudo = (?)", [us.pseudo])
+            row = curs.fetchone()
+            if row is None:
                 conn.close()
                 return redirect(url_for('profile'))
             else:
+                conn.close()
                 return redirect(url_for('home'))
         else:
             conn.close()
