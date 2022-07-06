@@ -35,7 +35,7 @@ class ProfileForm(FlaskForm):
     weight = IntegerField('Weight', validators=[DataRequired()])
     seggs = RadioField('Sexe Biologique', choices=[
         (1, 'M'), (2, 'F')],
-                       default=1, coerce=int)
+                       default=1, coerce=str)
     submit = SubmitField('OK')
 
 

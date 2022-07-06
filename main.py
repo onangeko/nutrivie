@@ -39,11 +39,13 @@ class User(UserMixin):
     def get_id(self):
         return self.id
 
+    def get_pseudo(self):
+        return self.pseudo
+
 
 class Profile:
-    def __init__(self, id, name, age, height, weight, seggs):
-        self.id = id
-        self.name = name
+    def __init__(self, pseudo, age, height, weight, seggs):
+        self.pseudo = pseudo
         self.age = age
         self.height = height
         self.weight = weight
@@ -62,15 +64,15 @@ def load_user(user_id):
         return User(result[0], result[1], result[2], result[3])
 
 
-def load_profile(user_id):
+def load_profile(pseudo):
     conn = sqlite3.connect('Nutrivie')
     curs = conn.cursor()
-    curs.execute("SELECT * from profile where user_id = (?)", [user_id])
+    curs.execute("SELECT * from profile where pseudo = (?)", [pseudo])
     result = curs.fetchone()
     if result is None:
         return None
     else:
-        return Profile(result[0], result[1], result[2], result[3], result[4], result[5])
+        return Profile(result[0], result[1], result[2], result[3], result[4])
 
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -87,7 +89,8 @@ def login():
         if us and bcrypt.checkpw(form.password.data.encode('utf-8'), us.password):
             login_user(us, form.remember.data)
             flash('Logged in successfully ' + us.pseudo)
-            if (curs.execute("SELECT * FROM profile where pseudo = (?)", [us.pseudo])) is not None:
+            rowcount = curs.execute("SELECT * FROM profile where pseudo = (?)", [us.pseudo])
+            if rowcount is None:
                 conn.close()
                 return redirect(url_for('profile'))
             else:
@@ -124,9 +127,12 @@ def profile():
         curs = conn.cursor()
         # charger le profile de l'utilisateur
         # remplir le profile avec id
-
-        curs.execute("INSERT INTO profile (user_id,age,weight,height,seggs) VALUES (?,?,?,?,?)",
-                     ("SELECT user_id FROM login", form.age, form.height, form.weight, form.seggs))
+        usps = User.get_pseudo(current_user)
+        print(usps)
+        print(form.age.data)
+        curs.execute(
+            "INSERT INTO profile (pseudo,age,weight,height,seggs) VALUES (?,?,?,?,? )",
+            (usps, form.age.data, form.weight.data, form.height.data, form.seggs.data))
         conn.commit()
         conn.close()
         flash('You have completed your profile')
@@ -134,10 +140,19 @@ def profile():
     return render_template('profile.html', title='Profile', form=form)
 
 
-@app.route("/home")
+@app.route("/home", methods=['GET', 'POST'])
 def home():
-    return "You were redirected! Congrats :)!"
+    form = HomeForm()
+    if form.validate_on_submit():
+        return redirect(url_for('logout'))
+    return render_template('home.html', title='Home', form=form)
 
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 
 if __name__ == "__main__":
