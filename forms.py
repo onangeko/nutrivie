@@ -11,8 +11,7 @@ class LoginForm(FlaskForm):
     remember = BooleanField('Remember Me')
     submit = SubmitField('Login')
 
-    @staticmethod
-    def validate_email(email):
+    def validate_email(self, email):
         conn = sqlite3.connect('Nutrivie')
         curs = conn.cursor()
         curs.execute("SELECT email FROM login where email = (?)", [email.data])
